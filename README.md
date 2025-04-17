@@ -59,7 +59,6 @@ fastapi==0.110.2
 uvicorn==0.29.0
 youtube-search-python==1.6.6
 fastapi-cache2==0.2.1
-mangum==0.17.0
 ```
 
 ---
@@ -157,13 +156,7 @@ npm install -g vercel
 }
 ```
 
-### 3. Add to `api/index.py`
-```python
-from mangum import Mangum
-handler = Mangum(app)
-```
-
-### 4. Deploy 🚀
+### 3. Deploy 🚀
 ```bash
 vercel --prod
 ```
