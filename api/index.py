@@ -90,11 +90,10 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from youtubesearchpython import VideosSearch
-import random
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from mangum import Mangum
 import logging
-from mangum import Mangum  # For Vercel compatibility
 
 app = FastAPI(
     title="YouTube Music Search API",
@@ -111,17 +110,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logging.getLogger("uvicorn.access").setLevel(logging.ERROR)
-
-# Predefined home page categories
-categories = [
-    "Bollywood Songs", "Lofi Beats", "bhojpuri",
-    "Punjabi Songs", "Romantic Songs", "Latest Songs"
-]
+# Logger cleanup
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 executor = ThreadPoolExecutor(max_workers=10)
 
-# Blocking search function
+# Categories for /home feed
+categories = ["Bollywood Songs", "Lofi Beats", "bhojpuri", "Punjabi Songs", "Romantic Songs", "Latest Songs"]
+
+# Helper: sync search
 def search_youtube_sync(query: str, limit: int = 20):
     try:
         search = VideosSearch(query, limit=limit)
@@ -146,7 +143,7 @@ async def search_youtube(query: str, limit: int = 20):
     return await loop.run_in_executor(executor, search_youtube_sync, query, limit)
 
 @app.get("/")
-async def index():
+async def root():
     return {"message": "Welcome to the YouTube Music Search API!"}
 
 @app.get("/search")
@@ -156,9 +153,9 @@ async def search(
     page: int = Query(1, ge=1),
     lang: str = Query(None)
 ):
-    query = q + (f" {lang}" if lang else "")
+    full_query = f"{q} {lang}" if lang else q
     start = (page - 1) * limit
-    results = await search_youtube(query, limit=limit + start)
+    results = await search_youtube(full_query, limit=limit + start)
     paginated = results[start:start + limit]
 
     return {
@@ -173,16 +170,17 @@ async def search(
 
 @app.get("/home")
 async def home():
+    import random
     random.shuffle(categories)
     selected = categories[:5]
-    tasks = [search_youtube(cat, 10) for cat in selected]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    tasks = [search_youtube(cat, 8) for cat in selected]
+    results = await asyncio.gather(*tasks)
     return {
         "home_feed": {
-            cat: res if isinstance(res, list) else []
-            for cat, res in zip(selected, results)
+            cat: res for cat, res in zip(selected, results)
         }
     }
 
-# Vercel deployment handler
+# MANGUM handler for Vercel
 handler = Mangum(app)
+
