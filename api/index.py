@@ -9,7 +9,7 @@ import random
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
-#import uvicorn
+import uvicorn
 from mangum import Mangum
 
 app = FastAPI(
