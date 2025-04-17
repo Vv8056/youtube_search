@@ -1,131 +1,86 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from youtubesearchpython import VideosSearch
-from fastapi_cache import FastAPICache
-from fastapi_cache.backends.inmemory import InMemoryBackend
-from fastapi_cache.decorator import cache
-
 import random
 import asyncio
-import logging
 from concurrent.futures import ThreadPoolExecutor
 import uvicorn
+import logging
 
 app = FastAPI(
     title="YouTube Music Search API",
-    description="FastAPI app to search music from YouTube with filtering, pagination, and caching.",
-    version="2.0.0"
+    description="A simple FastAPI app to fetch music data from YouTube using YouTubeSearchPython.",
+    version="1.0.0"
 )
 
-# Allow all origins (for dev)
+# Allow all origins for development (change in production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Or replace with specific origins like ["http://localhost:3000"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ThreadPool for blocking I/O
-executor = ThreadPoolExecutor(max_workers=10)
-
-# Categories for /home
-categories = [
-    "Bollywood Songs", "Lofi Beats", "Bhojpuri",
-    "Punjabi Songs", "Haryanvi Songs", "Latest Songs"
-]
-
-# Mount the static directory
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
+# Optional: Reduce logging noise for production
 logging.getLogger("uvicorn.access").setLevel(logging.ERROR)
 
-# Utility to check if video is a song
-def is_song(video):
-    return video.get("duration") and video.get("channel", {}).get("name")
+# Predefined categories for home feed
+categories = [
+    "Bollywood Songs", "Lofi Beats", "bhojpuri",
+    "Punjabi Songs", "Romantic Songs", "Latest Songs"
+]
 
-# Format video into a clean dict
-def format_video(video):
-    return {
-        "title": video.get("title"),
-        "url": video.get("link"),
-        "thumbnail": video.get("thumbnails", [{}])[0].get("url"),
-        "duration": video.get("duration"),
-        "channel": video.get("channel", {}).get("name"),
-    }
+# ThreadPoolExecutor for running blocking YouTube search calls
+executor = ThreadPoolExecutor(max_workers=10)
 
-# Run blocking search
+# Blocking YouTube search function
 def search_youtube_sync(query: str, limit: int = 50):
     try:
-        search = VideosSearch(query, limit=limit)
-        return search.result().get("result", [])
+        videos_search = VideosSearch(query, limit=limit)
+        results = videos_search.result().get('result', [])
+        return [{
+            'title': video.get('title'),
+            'url': video.get('link'),
+            'thumbnail': video.get('thumbnails', [{}])[0].get('url'),
+            'duration': video.get('duration'),
+            'channel': video.get('channel', {}).get('name')
+        } for video in results]
     except Exception as e:
-        logging.error(f"search_youtube_sync error: {e}")
+        logging.error(f"Error in search_youtube_sync: {e}")
         return []
 
-# Async wrapper
+# Async wrapper for running sync function in thread executor
 async def search_youtube(query: str, limit: int = 50):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(executor, search_youtube_sync, query, limit)
 
-@app.on_event("startup")
-async def setup_cache():
-    FastAPICache.init(InMemoryBackend())
-
 @app.get("/")
-async def root():
-    return {"message": "Welcome to the YouTube Music Search API!"}
-
-# Serve favicon
-@app.get("/favicon.ico", include_in_schema=False)
-async def favicon():
-    return FileResponse("static/favicon.ico")
+async def index():
+    return {"message": "Welcome to the YouTube Music Search API (FastAPI Version)!"}
 
 @app.get("/search")
-async def search(
-    q: str = Query(..., min_length=1),
-    limit: int = Query(10, gt=0, le=50),
-    page: int = Query(1, gt=0),
-    lang: str = Query(None)
-):
-    raw_query = f"{q} {lang} song" if lang else q
-    all_results = await search_youtube(raw_query, 50)
-
-    # Filter songs
-    songs = [format_video(v) for v in all_results if is_song(v)]
-    total = len(songs)
-
-    # Paginate
-    start = (page - 1) * limit
-    end = start + limit
-    paginated = songs[start:end]
-
-    return {
-        "results": paginated,
-        "pagination": {
-            "page": page,
-            "limit": limit,
-            "total": total,
-            "has_more": end < total
-        }
-    }
+async def search(q: str = Query(..., min_length=1)):
+    results = await search_youtube(q)
+    return {"results": results}
 
 @app.get("/home")
-@cache(expire=300)
 async def home():
     random.shuffle(categories)
     selected = categories[:5]
 
-    tasks = [search_youtube(cat, 20) for cat in selected]
+    # Run YouTube searches concurrently
+    tasks = [search_youtube(category, 20) for category in selected]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    home_feed = {}
-    for cat, res in zip(selected, results):
-        if isinstance(res, list):
-            filtered = [format_video(v) for v in res if is_song(v)]
-            home_feed[cat] = filtered[:5]
+    home_data = {
+        category: result if isinstance(result, list) else []
+        for category, result in zip(selected, results)
+    }
 
-    return {"home_feed": home_feed}
+    return {"home_feed": home_data}
 
+# Optional: Allow running with python main.py
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
