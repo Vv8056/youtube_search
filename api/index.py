@@ -76,6 +76,11 @@ async def setup_cache():
 async def root():
     return {"message": "Welcome to the YouTube Music Search API!"}
 
+# Serve favicon
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse("static/favicon.ico")
+
 @app.get("/search")
 async def search(
     q: str = Query(..., min_length=1),
