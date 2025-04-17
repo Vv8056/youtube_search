@@ -10,7 +10,6 @@ import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
 import uvicorn
-from mangum import Mangum
 
 app = FastAPI(
     title="YouTube Music Search API",
@@ -127,9 +126,6 @@ async def home():
             home_feed[cat] = filtered[:5]
 
     return {"home_feed": home_feed}
-
-# Export a handler for Vercel's Python runtime
-handler = Mangum(app)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
