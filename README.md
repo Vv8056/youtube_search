@@ -36,7 +36,7 @@ A blazing-fast 🔥 FastAPI-powered backend that searches music videos from YouT
 
 ```bash
 # Clone the repo
-https://github.com/Vv8056/youtube_search.git
+git clone https://github.com/Vv8056/youtube_search.git
 cd youtube_search
 
 # Create a virtual environment
