@@ -35,6 +35,9 @@ categories = [
     "Punjabi Songs", "Haryanvi Songs", "Latest Songs"
 ]
 
+# Mount the static directory
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 logging.getLogger("uvicorn.access").setLevel(logging.ERROR)
 
 # Utility to check if video is a song
