@@ -1,6 +1,6 @@
 # 🎵 YouTube Music Search API 🎶
 
-A blazing-fast 🔥 FastAPI-powered backend that searches music videos from YouTube using [`youtube-search-python`](https://github.com/alexmercerind/youtube-search-python), with features like pagination, category feed, language filtering, and in-memory caching. Ideal for building lightweight music apps, search tools, or personalized home feeds!
+A blazing-fast 🔥 FastAPI-powered backend that searches music videos from YouTube using [`youtube-search-python`](https://github.com/Vv8056/youtube_search.git), with features like pagination, category feed, language filtering, and in-memory caching. Ideal for building lightweight music apps, search tools, or personalized home feeds!
 
 ---
 
@@ -36,8 +36,8 @@ A blazing-fast 🔥 FastAPI-powered backend that searches music videos from YouT
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/youtube-music-search-api
-cd youtube-music-search-api
+https://github.com/Vv8056/youtube_search.git
+cd youtube_search
 
 # Create a virtual environment
 python -m venv venv
